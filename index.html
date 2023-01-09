@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Parcel Sandbox</title>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="src/styles.css" />
+  </head>
+
+  <body>
+    <!-- <pre id="app"></pre> -->
+    <label for="duration">animation duration, s</label>
+    <input type="number" name="duration" id="duration" value="4" />
+    <nav>
+      <input
+        type="radio"
+        name="selectTypeOfAnimation"
+        id="opt1"
+        value="100 100 200 200"
+      />
+      <label for="opt1">type1</label>
+      <input
+        type="radio"
+        name="selectTypeOfAnimation"
+        id="opt2"
+        value="100 200 200 100"
+      />
+      <label for="opt2">type2</label>
+      <input
+        type="radio"
+        name="selectTypeOfAnimation"
+        id="opt3"
+        value="200 100 100 200"
+      />
+      <label for="opt3">type3</label>
+      <input
+        type="radio"
+        name="selectTypeOfAnimation"
+        id="opt4"
+        value="150 150 150 150"
+      />
+      <label for="opt4">type4</label>
+      <input
+        type="radio"
+        name="selectTypeOfAnimation"
+        id="opt5"
+        value="10 100 10 10"
+      />
+      <label for="opt5">castom</label>
+    </nav>
+    <div class="titleForCoords">dots position</div>
+    <div class="output">X Y</div>
+
+    <div class="circle"></div>
+
+    <canvas id="canvas" width="300" height="300"></canvas>
+  </body>
+  <script src="src/index.js"></script>
+</html>
