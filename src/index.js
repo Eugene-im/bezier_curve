@@ -154,7 +154,7 @@ function drawCurve(canvas, pos = defDotPreset) {
       let pointForCurve = converterPointsToCanvas(point, canvas);
       curve.lineTo(pointForCurve.x, pointForCurve.y);
     });
-    ctx.strokeStyle = "#0000ff";
+    ctx.strokeStyle = "#0d6efd";
     ctx.lineWidth = 7;
     ctx.stroke(curve);
     ctx.lineWidth = 1;
@@ -228,8 +228,8 @@ function controllDotChagePosition(event) {
 
 function timeInputUpdated(event) {
   setTimeout(() => {
-    defTimePreset = event.target.value;
-    updateAnimation();
+    defTimePreset = +event.target.value;
+    updateAnimation(circle, defTimePreset, defDotPreset);
   }, 400);
 }
 
