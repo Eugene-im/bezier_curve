@@ -37,6 +37,17 @@ class Curve {
 
 // functions
 // manipulation with elements
+
+function copyBezierPreset() {
+  navigator.clipboard.writeText(
+    `cubic-bezier(${defDotPreset[0].x}, ${defDotPreset[0].y}, ${defDotPreset[1].x}, ${defDotPreset[1].y})`
+  );
+  copyButtonIcon.classList.replace("bi-clipboard", "bi-clipboard-plus");
+  setTimeout(() => {
+    copyButtonIcon.classList.replace("bi-clipboard-plus", "bi-clipboard");
+  }, 700);
+}
+
 function updateOtput() {
   output.innerText = `${defDotPreset[0].x} ${defDotPreset[0].y} ${defDotPreset[1].x} ${defDotPreset[1].y}`;
 }
@@ -228,13 +239,15 @@ let defTimePreset = 4;
 const dotDiametr = 6;
 
 // dom elements
-let canvas = document.getElementById("canvas");
-let inputTime = document.getElementById("duration");
-let output = document.querySelectorAll(".output")[0];
-let radiobuttons = [
+const copyButton = document.getElementById("copy");
+const copyButtonIcon = document.querySelectorAll("#copy .bi")[0];
+const canvas = document.getElementById("canvas");
+const inputTime = document.getElementById("duration");
+const output = document.querySelectorAll(".output")[0];
+const radiobuttons = [
   ...document.querySelectorAll('[name="selectTypeOfAnimation"]')
 ];
-let circle = document.getElementsByClassName("circle")[0];
+const circle = document.getElementsByClassName("circle")[0];
 
 //eventlisteners
 canvas.addEventListener("mousedown", function () {
@@ -254,5 +267,13 @@ radiobuttons.forEach((radioButton) => {
   radioButton.addEventListener("click", radiobuttonChangeHandler);
 });
 
+copyButton.addEventListener("click", copyBezierPreset);
+
 // first drow
 drawCurve(canvas);
+updateOtput();
+
+// loading emulation
+setTimeout(() => {
+  document.getElementById("global").classList.remove("loading-skeleton");
+}, 500);
