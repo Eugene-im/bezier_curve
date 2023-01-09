@@ -185,8 +185,10 @@ function radiobuttonChangeHandler(event) {
     new Point(userPointsPreset[0], userPointsPreset[1]),
     new Point(userPointsPreset[2], userPointsPreset[3])
   ];
-  updateDotsPositionPreset(controlPointsCoords[0], 0, defDotPreset);
-  updateDotsPositionPreset(controlPointsCoords[1], 1, defDotPreset);
+  defDotPreset[0] = controlPointsCoords[0];
+  defDotPreset[1] = controlPointsCoords[1];
+  // updateDotsPositionPreset(controlPointsCoords[0], 0, defDotPreset);
+  // updateDotsPositionPreset(controlPointsCoords[1], 1, defDotPreset);
   updateOtput();
   drawCurve(canvas);
   updateAnimation(circle, defTimePreset, defDotPreset);
