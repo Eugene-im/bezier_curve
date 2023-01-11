@@ -6,35 +6,85 @@ class Point {
     this.y = y;
   }
 }
-class Coordinates {
-  data = [];
-  constructor(point1, point2) {
-    this.data.push(point1);
-    this.data.push(point2);
+// class Coordinates {
+//   data = [];
+//   constructor(point1, point2) {
+//     this.data.push(point1);
+//     this.data.push(point2);
+//   }
+// }
+
+class StorageData {
+  time = 0;
+  point1 = {};
+  point2 = {};
+  constructor(point1, point2, time) {
+    if (point1) {
+      this.point1 = point1;
+    }
+    if (point2) {
+      this.point2 = point2;
+    }
+    if (time) this.time = time;
   }
 }
 
-class Storage {
-  time = 0;
-  point1 = new Point();
-  point2 = new Point();
-  constructor(coordinates, time) {
-    this.point1 = coordinates[0];
-    this.point2 = coordinates[1];
-    this.time = time;
+class StorageImplementation {
+  data = {};
+  constructor(storageDataElement) {
+    this.data = storageDataElement;
   }
   getData() {
+    return this.data;
+  }
+  getDataForView() {
+    let outString = "";
+    Object.keys(this.data)
+      .filter((key) => key !== "time")
+      .forEach(
+        (key) => (outString += `${this.data[key].x}, ${this.data[key].y}, `)
+      );
+    outString.trim();
     return {
-      time: this.time,
-      coordinates: [this.point1, this.point2],
-      combined: `${this.point1.x}, ${this.point1.y}, ${this.point2.x}, ${this.point2.y}`,
+      time: this.data.time,
+      points: this.data.points,
+      combinedCoordinates: outString,
     };
   }
-  updateData(point1, point2, time) {
-    if (point1) this.point1 = point1;
-    if (point1) this.point2 = point2;
-    if (time) this.time = time;
-    return this.getData();
+  updateData(storageData) {
+    this.data = storageData;
+    //call observer
+    observer.updateState(this.getData());
+  }
+}
+
+class Observer {
+  initElementDataState = {};
+  outputElementUpdater;
+  constructor(element, outputElementUpdater) {
+    this.initElementState = element.getData();
+    // this.initElementState = element.data;
+    this.outputElementUpdater = outputElementUpdater;
+  }
+  updateState(elementDataState) {
+    let shouldUpdate = false;
+    if (
+      JSON.stringify(this.initElementDataState) !==
+      JSON.stringify(elementDataState)
+    ) {
+      for (let key in elementDataState) {
+        this.initElementDataState[key] = elementDataState[key];
+      }
+      shouldUpdate = true;
+    }
+    if (shouldUpdate) this._updateUi();
+  }
+  _updateUi() {
+    console.error("should implement");
+    // TODO make it clear
+    this.outputElementUpdater.update(
+      dataStorage.getDataForView().combinedCoordinates
+    );
   }
 }
 
@@ -79,45 +129,90 @@ class InputData {
   }
 }
 
-
 /**
  * @abstract
  */
-export class AbstractShape {
-    /**
-     * @abstract
-     * @param {Canvas} canvas
-     */
-    draw(canvas) {
-        throw new Error('Not implemented')
-    }
+class AbstractShape {
+  /**
+   * @abstract
+   * @param {Canvas} canvas
+   */
+  draw(canvas) {
+    throw new Error("Not implemented");
+  }
 
-    /**
-     * @abstract
-     * @param {Canvas} canvas
-     */
-    update(canvas) {
-        // https://stackoverflow.com/questions/30738717/javascript-canvas-clear-redraw
-    }
+  /**
+   * @abstract
+   * @param {Canvas} canvas
+   */
+  update(canvas) {
+    // https://stackoverflow.com/questions/30738717/javascript-canvas-clear-redraw
+  }
 }
 
-export class CircleShape extends AbstractShape {
-    constructor() {
-        super();
+class CircleShape extends AbstractShape {
+  centerCoordinates = new Point(0, 0);
+  circleWidth = 6;
+  color = "#00ff00";
+  constructor(centerCoordinates, circleWidth, color) {
+    super();
+    this.centerCoordinates = { ...centerCoordinates };
+    this.circleWidth = circleWidth;
+    this.color = color;
+  }
 
-    }
+  draw(canvas) {
+    canvas.ctx.beginPath();
+    canvas.ctx.arc(
+      this.centerCoordinates.x,
+      this.centerCoordinates.y,
+      this.circleWidth,
+      0,
+      2 * Math.PI
+    );
+    canvas.ctx.fillStyle = this.color;
+    canvas.ctx.fill();
+    canvas.ctx.closePath();
 
-    draw(canvas) {
-        canvas.ctx.stroke()
+    return undefined;
+  }
 
-        return undefined;
-    }
+  update(centerCoordinates) {
+    this.centerCoordinates = centerCoordinates;
+    return undefined;
+  }
+}
+// https://stackoverflow.com/questions/30738717/javascript-canvas-clear-redraw
 
+class LineShape extends AbstractShape {
+  startPoint = new Point(0, 0);
+  endPoint = new Point(1, 1);
+  lineWidth = 1;
+  color = "#cecece";
+  constructor(startPoint, endPoint, lineWidth, color) {
+    super();
+    if (startPoint) this.startPoint = startPoint;
+    if (endPoint) this.endPoint = endPoint;
+    if (lineWidth) this.lineWidth = lineWidth;
+    if (color) this.color = color;
+  }
 
-    update(canvas) {
-        // canvas.ctx.sss
-        // https://stackoverflow.com/questions/30738717/javascript-canvas-clear-redraw
-    }
+  draw(canvas) {
+    canvas.ctx.lineWidth = this.lineWidth;
+    canvas.ctx.strokeStyle = this.color;
+    canvas.ctx.beginPath();
+    canvas.ctx.moveTo(this.startPoint.x, this.startPoint.y);
+    canvas.ctx.lineTo(this.endPoint.x, this.endPoint.y);
+    canvas.ctx.stroke();
+    canvas.ctx.closePath();
+    return undefined;
+  }
+
+  update(startPoint, endPoint) {
+    this.startPoint = startPoint;
+    this.endPoint = endPoint;
+    return undefined;
+  }
 }
 
 class CanvasElement {
@@ -136,32 +231,35 @@ class CanvasElement {
    */
   existingShapes = new Set();
 
+  width = 0;
+  height = 0;
+
   constructor(domNode) {
     if (!domNode.getContext) {
       throw new Error("domeNode is not canvas");
     }
     this.domNode = domNode;
+    this.width = domNode.width;
+    this.height = domNode.height;
     this._init();
-    //   this._subscribe();
   }
 
   _init() {
     this.ctx = this.domNode.getContext("2d");
-    //   this.ctx.clearRect(0, 0, this.domNode.width, this.domNode.height);
   }
 
   /**
    *
    * @param {AbstractShape} shape
    */
-  drawShape(shape) {
-    if (this.existingShapes.has(shape)) {
-      shape.update(this);
-      return;
-    }
-
+  drawShape() {
+    this.ctx.clearRect(0, 0, this.domNode.width, this.domNode.height);
+    this.existingShapes.forEach((shape) => {
+      shape.draw(this);
+    });
+  }
+  addElementForDrawToList(shape) {
     this.existingShapes.add(shape);
-    shape.draw(this);
   }
 }
 
@@ -197,7 +295,7 @@ class PainterInput extends InputData {
    */
   activeDotIndex = -1;
 
-  defDotPreset = new Coordinates(new Point(0, 1), new Point(1, 0));
+  defDotPreset = [new Point(0, 1), new Point(1, 0)];
 
   /**
    * @param {HTMLCanvasElement} domNode Canvas element
@@ -209,14 +307,8 @@ class PainterInput extends InputData {
     }
     this.domNode = domNode;
     this.defDotPreset = { ...defDotPreset };
-    // this._init();
     this._subscribe();
   }
-
-  //   _init() {
-  //     this.ctx = this.domNode.getContext("2d");
-  //     this.ctx.clearRect(0, 0, this.domNode.width, this.domNode.height);
-  //   }
 
   _subscribe() {
     this.domNode.addEventListener("click", this._onCanvasClick.bind(this));
@@ -298,7 +390,7 @@ class PainterInput extends InputData {
       }
       this.updateDotsPositionPreset(hittedControlPointCoords, activeDotIndex);
       //   this . ??????? drawCurve(canvas);
-      
+
       // for observer
       //   updateOtput(output, defDotPreset);
       //   updateAnimation(circle, defTimePreset, defDotPreset);
@@ -318,12 +410,11 @@ class PainterInput extends InputData {
   }
 }
 
-//for case radiobutton call 
+//for case radiobutton call
 // const canvasInput = new PainterInput(........)
 // canvasInput.updateDotsPositionPreset()
 //for case canvas redraw call
 // the same? but under the class will be called canvasInput._controlDotChangePosition()
-
 
 // document.addEventListener();
 // function timeInputUpdated(event) {
@@ -336,3 +427,46 @@ class PainterInput extends InputData {
 //   }
 
 // copyButton.addEventListener("click", copyBezierPreset);
+const domeNodeOutput = document.getElementById("output");
+
+const domeNodeCanvasDynamic = document.getElementById("canvasDynamic");
+const dynamicCanvas = new CanvasElement(domeNodeCanvasDynamic);
+
+const domeNodeCanvasStatic = document.getElementById("canvasStatic");
+const staticCanvas = new CanvasElement(domeNodeCanvasStatic);
+
+const circle = new CircleShape(new Point(30, 30), 20, "#000");
+const circle2 = new CircleShape(new Point(260, 260), 20, "#0f0");
+
+const line = new LineShape(
+  new Point(20, 20),
+  new Point(staticCanvas.width, staticCanvas.height)
+);
+
+dynamicCanvas.addElementForDrawToList(circle);
+dynamicCanvas.addElementForDrawToList(circle2);
+
+staticCanvas.addElementForDrawToList(line);
+
+dynamicCanvas.drawShape();
+staticCanvas.drawShape();
+
+const initDataPoints = new StorageData(new Point(0, 1), new Point(2, 1), 4);
+
+const dataStorage = new StorageImplementation(initDataPoints);
+const updater = new UpdateOutputUi([domeNodeOutput]);
+const observer = new Observer(dataStorage, updater);
+
+let i = 0;
+domeNodeCanvasDynamic.addEventListener("click", function (event) {
+  const initDataPoints2 = new StorageData(
+    new Point(1 + i, 1 + i),
+    new Point(2 + 2 * i, 2 + 3 * i),
+    5
+  );
+  circle.update(new Point(40 + i, 40 + i));
+  circle2.update(new Point(250 - i, 250 - i));
+  dynamicCanvas.drawShape();
+  i += 10;
+  dataStorage.updateData(initDataPoints2);
+});
