@@ -1,3 +1,39 @@
+const converter = {
+  converterPointsToCanvas(point, canvasWidth, canvasHeight, view = true) {
+    return new Point(
+      Math.round(point.x * canvasWidth),
+      view
+        ? Math.round(canvasHeight - point.y * canvasHeight)
+        : Math.round(point.y * canvasHeight)
+    );
+  },
+  converterCanvasToPoints(point, canvasWidth, canvasHeight, view = true) {
+    return new Point(
+      Math.floor((point.x * 100) / canvasWidth) / 100,
+      view
+        ? Math.floor(((canvasHeight - point.y) * 100) / canvasHeight) / 100
+        : Math.floor((point.y * 100) / canvasHeight) / 100
+    );
+  },
+};
+
+// observer
+
+const Observer = {
+  aInternal: 0,
+  aListener: function (val) {},
+  set a(val) {
+    this.aInternal = val;
+    this.aListener(val);
+  },
+  get a() {
+    return this.aInternal;
+  },
+  registerListener: function (listener) {
+    this.aListener = listener;
+  },
+};
+
 class Point {
   x = 0;
   y = 0;
@@ -6,13 +42,6 @@ class Point {
     this.y = y;
   }
 }
-// class Coordinates {
-//   data = [];
-//   constructor(point1, point2) {
-//     this.data.push(point1);
-//     this.data.push(point2);
-//   }
-// }
 
 class StorageData {
   time = 0;
@@ -32,35 +61,19 @@ class StorageData {
 class StorageImplementation {
   initData = {};
   shouldUpdateUi = false;
-  updater;
-  constructor(initData, updater) {
-    if (!updater) {
-      throw new Error("pls init instance of Updater");
-    }
+  constructor(initData) {
     if (!initData) {
       throw new Error("pls set init data instance of StorageData");
     }
     this.initData = initData;
-    this.updater = updater;
   }
 
   getData() {
     return this.initData;
   }
   getDataForView() {
-    let outString = "";
-    Object.keys(this.initData)
-      .filter((key) => key !== "time")
-      .forEach((key, index) => {
-        outString += `${this.initData[key].x}, ${this.initData[key].y}`;
-        if (!index) outString += ", ";
-      });
-    // outString.trim();
-    return {
-      time: this.initData.time,
-      points: this.initData.points,
-      combinedCoordinates: outString,
-    };
+    let x = JSON.stringify(this.initData);
+    return x;
   }
   updateData(storageData) {
     if (JSON.stringify(this.initData) !== JSON.stringify(storageData)) {
@@ -68,16 +81,10 @@ class StorageImplementation {
         this.initData[key] = storageData[key];
       }
       this.shouldUpdateUi = true;
-    }
-    if (this.shouldUpdateUi) {
-      //   this._updateUi();
-      this.updater.update(this.getDataForView().combinedCoordinates);
+      Observer.a = this.shouldUpdateUi;
     }
     return undefined;
   }
-  //   _updateUi() {
-  //     return undefined;
-  //   }
 }
 
 // const storage = new Storage(4, new Point(0, 1), new Point(1, 0));
@@ -89,17 +96,20 @@ class Updater {
   /**
    * @param {Array} elementList
    */
-  constructor(elementList, canvasElementList, canvas) {
+  constructor(elementList, canvasElementList, canvasWidth, canvasHeight) {
     if (!canvasElementList) {
       throw new Error("pls set list of canvas elements for move");
     }
     if (!elementList) {
       throw new Error("pls set list of elements for view output data");
     }
-    if (!canvas) {
-      throw new Error("pls set element where elements should be updated");
+    if (!canvasWidth || !canvasHeight) {
+      throw new Error(
+        "pls set width and height of element where elements should be updated"
+      );
     }
-    this.canvas = canvas;
+    this.canvasWidth = canvasWidth;
+    this.canvasHeight = canvasHeight;
     this.elementList = [...elementList];
     this.canvasElementList = [...canvasElementList];
   }
@@ -107,7 +117,7 @@ class Updater {
    * @param {string} data
    */
   update(data) {
-    this._updateUi(data);
+    this._updateUi(JSON.stringify(data));
     this._updateCanvasShape(data);
     return undefined;
   }
@@ -115,18 +125,9 @@ class Updater {
     this.elementList.forEach((element) => (element.innerHTML = dataString));
   }
   _updateCanvasShape(dataObj) {
-    console.error("should implement", dataObj);
-    const copyObj = dataObj.map((point) => {
-      shape.converterPointsToCanvas(
-        point,
-        this.canvas.width,
-        this.canvas.width
-      );
-    });
     this.canvasElementList.forEach((shape) => {
-      // dataobj except time
-      // canvasWidth,canvasHeight
-      shape.update(copyObj);
+      shape.update(dataObj);
+      console.error("should implement", dataObj);
     });
   }
 }
@@ -150,49 +151,7 @@ class AbstractShape {
   update(canvas) {
     throw new Error("Not implemented");
   }
-  converterPointsToCanvas(point, canvasWidth, canvasHeight, view = true) {
-    return new Point(
-      Math.round(point.x * canvasWidth),
-      view
-        ? Math.round(canvasHeight - point.y * canvasHeight)
-        : Math.round(point.y * canvasHeight)
-    );
-  }
 }
-
-class CircleShape extends AbstractShape {
-  centerCoordinates = new Point(0, 0);
-  circleWidth = 60;
-  color = "#00ff00";
-  constructor(centerCoordinates, circleWidth, color) {
-    super();
-    if (centerCoordinates) this.centerCoordinates = { ...centerCoordinates };
-    if (circleWidth) this.circleWidth = circleWidth;
-    if (color) this.color = color;
-  }
-
-  draw(canvas) {
-    canvas.ctx.beginPath();
-    canvas.ctx.arc(
-      this.centerCoordinates.x,
-      this.centerCoordinates.y,
-      this.circleWidth,
-      0,
-      2 * Math.PI
-    );
-    canvas.ctx.fillStyle = this.color;
-    canvas.ctx.fill();
-    canvas.ctx.closePath();
-
-    return undefined;
-  }
-
-  update(centerCoordinates) {
-    this.centerCoordinates = centerCoordinates;
-    return undefined;
-  }
-}
-// https://stackoverflow.com/questions/30738717/javascript-canvas-clear-redraw
 
 class LineShape extends AbstractShape {
   startPoint = new Point(0, 0);
@@ -225,13 +184,70 @@ class LineShape extends AbstractShape {
   }
 }
 
+class CurveControlShape extends AbstractShape {
+  startPoint = new Point(300, 0);
+  endPoint = new Point(0, 0);
+  lineWidth = 1;
+  lineColor = "#cecece";
+  circleWidth = 5;
+  circleColor = "#00ff00";
+  controlPointNumber = 1;
+  constructor(
+    startPoint,
+    endPoint,
+    lineWidth,
+    lineColor,
+    circleWidth,
+    circleColor,
+    controlPointNumber
+  ) {
+    super();
+    if (startPoint) this.startPoint = startPoint;
+    if (endPoint) this.endPoint = endPoint;
+    if (lineWidth) this.lineWidth = lineWidth;
+    if (lineColor) this.lineColor = lineColor;
+    if (circleWidth) this.circleWidth = circleWidth;
+    if (circleColor) this.circleColor = circleColor;
+    if (controlPointNumber) this.controlPointNumber = controlPointNumber;
+  }
+  draw(canvas) {
+    canvas.ctx.lineWidth = this.lineWidth;
+    canvas.ctx.strokeStyle = this.lineColor;
+    canvas.ctx.beginPath();
+    canvas.ctx.moveTo(this.startPoint.x, this.startPoint.y);
+    canvas.ctx.lineTo(this.endPoint.x, this.endPoint.y);
+    canvas.ctx.stroke();
+    canvas.ctx.closePath();
+    canvas.ctx.beginPath();
+    canvas.ctx.arc(
+      this.startPoint.x,
+      this.startPoint.y,
+      this.circleWidth,
+      0,
+      2 * Math.PI
+    );
+    canvas.ctx.fillStyle = this.circleColor;
+    canvas.ctx.fill();
+    canvas.ctx.closePath();
+    return undefined;
+  }
+
+  update(points) {
+    this.startPoint = points[`point${this.controlPointNumber}`];
+    return undefined;
+  }
+}
+
 class CurveShape extends AbstractShape {
   startPoint = new Point(0, 0);
   endPoint = new Point(1, 1);
-  controlPoints = [new Point(1, 0), new Point(0, 1)];
+  controlPoints = { point1: new Point(1, 0), point2: new Point(0, 1) };
   lineWidth = 7;
   color = "#0000ff";
   animationDuration = 4;
+  scalable = true;
+  canvasWidth = 0;
+  canvasHeight = 0;
   constructor(controlPoints, lineWidth, color) {
     super();
     if (controlPoints) this.controlPoints = controlPoints;
@@ -240,14 +256,17 @@ class CurveShape extends AbstractShape {
   }
 
   draw(canvas) {
+    this.canvasWidth = canvas.width;
+    this.canvasHeight = canvas.height;
     canvas.ctx.lineWidth = this.lineWidth;
     canvas.ctx.strokeStyle = this.color;
     canvas.ctx.beginPath();
-    this.getCurvePoints().forEach((point) => {
-      const pointForCurve = this.converterPointsToCanvas(
+    this.getCurvePoints((canvas.width + canvas.height) / 2).forEach((point) => {
+      const pointForCurve = converter.converterPointsToCanvas(
         point,
         canvas.width,
-        canvas.height
+        canvas.height,
+        true
       );
       canvas.ctx.lineTo(
         pointForCurve.x, // / 2 + canvas.width / 4,
@@ -260,15 +279,25 @@ class CurveShape extends AbstractShape {
   }
 
   update(controlPoints) {
-    this.controlPoints = controlPoints;
+    let point1 = converter.converterCanvasToPoints(
+      controlPoints.point1,
+      this.canvasWidth,
+      this.canvasHeight
+    );
+    let point2 = converter.converterCanvasToPoints(
+      controlPoints.point2,
+      this.canvasWidth,
+      this.canvasHeight
+    );
+    this.controlPoints = { point1, point2 };
     return undefined;
   }
 
   cube(i, axis) {
     // P = (1−t)3P1 + 3(1−t)2tP2 +3(1−t)t2P3 + t3P4
     const p1 = Math.pow(1 - i, 3) * this.startPoint[axis];
-    const p2 = 3 * Math.pow(1 - i, 2) * i * this.controlPoints[0][axis];
-    const p3 = 3 * (1 - i) * Math.pow(i, 2) * this.controlPoints[1][axis];
+    const p2 = 3 * Math.pow(1 - i, 2) * i * this.controlPoints.point1[axis];
+    const p3 = 3 * (1 - i) * Math.pow(i, 2) * this.controlPoints.point2[axis];
     const p4 = Math.pow(i, 3) * this.endPoint[axis];
     return p1 + p2 + p3 + p4;
   }
@@ -326,14 +355,6 @@ class CanvasElement {
   }
   addToListElementForDraw(shape) {
     this.existingShapes.add(shape);
-  }
-  converterCanvasToPoints(point, view = true) {
-    return new Point(
-      Math.floor((point.x * 100) / this.width) / 100,
-      view
-        ? Math.floor(((this.height - point.y) * 100) / this.height) / 100
-        : Math.floor((point.y * 100) / this.height) / 100
-    );
   }
 }
 
@@ -402,22 +423,18 @@ class InputCanvasElement extends CanvasElement {
   }
   _compareMousePlace(point) {
     this.arrayOfControllingPrimitiveShape.forEach((controlShape, index) => {
-      const dot = controlShape.converterPointsToCanvas(
-        controlShape.centerCoordinates,
-        this.domNode.width,
-        this.domNode.height,
-        true
-      );
-      if (
-        point.x >= dot.x - 4 * controlShape.circleWidth &&
-        point.x <= dot.x + 4 * controlShape.circleWidth &&
-        point.y >= dot.y - 4 * controlShape.circleWidth &&
-        point.y <= dot.y + 4 * controlShape.circleWidth
-      ) {
+      const { startPoint, circleWidth } = controlShape;
+
+      const compare =
+        point.x >= startPoint.x - 4 * circleWidth &&
+        point.x <= startPoint.x + 4 * circleWidth &&
+        point.y >= startPoint.y - 4 * circleWidth &&
+        point.y <= startPoint.y + 4 * circleWidth;
+      if (compare) {
         this.activeDotIndex = index;
       }
-      return undefined;
     });
+    return undefined;
   }
   /**
    *
@@ -433,18 +450,19 @@ class InputCanvasElement extends CanvasElement {
     if (this.isDown) {
       const hittedControlPointCoords = this._getMousePos(this.domNode, ev);
       if (this.activeDotIndex === -1) {
-        this._compareMousePlace(hittedControlPointCoords);
-        if (this.activeDotIndex === -1) {
-          return;
-        }
+        let x = this._compareMousePlace(hittedControlPointCoords);
       }
-      let copyStorage = { ...this.storageElem.getData() };
-      copyStorage[`point${this.activeDotIndex + 1}`] =
-        this.converterCanvasToPoints(hittedControlPointCoords);
-      this.storageElem.updateData(copyStorage);
-      // add here update for all
-      this.drawShape();
+      if (this.activeDotIndex !== -1) {
+        let copyStorageData = { ...this.storageElem.initData };
+
+        let whichControlActive = `point${this.activeDotIndex + 1}`;
+        copyStorageData[whichControlActive] = hittedControlPointCoords;
+        this.storageElem.updateData(copyStorageData);
+        // TODO add here update for all
+        this.drawShape();
+      }
     }
+    return undefined;
   }
 
   _onCanvasMouseDown(ev) {
@@ -469,24 +487,13 @@ class InputCanvasElement extends CanvasElement {
 
 (() => {
   // copyButton.addEventListener("click", copyBezierPreset);
+  //   const converter = new Converter();
+
   const domeNodeOutput = document.getElementById("output");
   const domeNodeCanvasDynamic = document.getElementById("canvasDynamic");
   const domeNodeCanvasStatic = document.getElementById("canvasStatic");
-
-  const initDataPoints = new StorageData(new Point(0, 1), new Point(1, 0), 4);
+  
   const staticCanvas = new CanvasElement(domeNodeCanvasStatic);
-  //first control element
-  const circle = new CircleShape(undefined, 50);
-  const line = new LineShape(new Point(0, 0), new Point(0, 0));
-
-  //second control element
-  const circle2 = new CircleShape();
-  const line2 = new LineShape(new Point(1, 1), new Point(0, 0));
-
-  const updater = new Updater([domeNodeOutput], [circle, circle2, line, line2]);
-
-  const dataStorage = new StorageImplementation(initDataPoints, updater);
-
   const backLine = new LineShape(
     new Point(20, 0),
     new Point(20, staticCanvas.height)
@@ -495,27 +502,60 @@ class InputCanvasElement extends CanvasElement {
     new Point(0, 20),
     new Point(staticCanvas.width, 20)
   );
+  staticCanvas.addToListElementForDraw(backLine);
+  staticCanvas.addToListElementForDraw(backLine2);
+  staticCanvas.drawShape();
+
+
+  const initDataPoints = new StorageData(
+    new Point(0, 0),
+    new Point(300, 300),
+    4
+  );
+  const dataStorage = new StorageImplementation(initDataPoints);
+
 
   const curve = new CurveShape();
+  const control = new CurveControlShape(
+    initDataPoints.point1,
+    new Point(0, 300)
+  );
+  const control2 = new CurveControlShape(
+    initDataPoints.point2,
+    new Point(300, 0),
+    4,
+    "#000",
+    5,
+    "#00f",
+    2
+  );
+
+  const updater = new Updater(
+    [domeNodeOutput],
+    [control, control2, curve],
+    domeNodeCanvasDynamic.width,
+    domeNodeCanvasDynamic.height
+  );
+
 
   const dynamicCanvas = new InputCanvasElement(
     domeNodeCanvasDynamic,
-    [circle, circle2],
+    [control, control2],
     dataStorage
   );
 
-  dynamicCanvas.addToListElementForDraw(circle);
-  dynamicCanvas.addToListElementForDraw(circle2);
-  dynamicCanvas.addToListElementForDraw(line);
-  dynamicCanvas.addToListElementForDraw(line2);
   dynamicCanvas.addToListElementForDraw(curve);
+  dynamicCanvas.addToListElementForDraw(control);
+  dynamicCanvas.addToListElementForDraw(control2);
 
-  staticCanvas.addToListElementForDraw(backLine);
-  staticCanvas.addToListElementForDraw(backLine2);
 
   dynamicCanvas.drawShape();
-  staticCanvas.drawShape();
-  //   const observer = new Observer(dataStorage, updater);
+
+  const someFunc = function (shouldUpdateUi) {
+    updater.update(dataStorage.initData);
+  };
+
+  Observer.registerListener(someFunc);
 
   //   let i = 0;
   //   domeNodeCanvasDynamic.addEventListener("click", function (event) {
