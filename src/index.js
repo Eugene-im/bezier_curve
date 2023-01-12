@@ -34,6 +34,21 @@ const Observer = {
   },
 };
 
+const helpers = {
+  buttonManipulate: (element) => {
+    element.classList.replace("bi-clipboard", "bi-clipboard-plus");
+    setTimeout(() => {
+      element.classList.replace("bi-clipboard-plus", "bi-clipboard");
+    }, 700);
+  },
+  copyBezierPreset: (event, data) => {
+    navigator.clipboard.writeText(
+      JSON.stringify(data)
+      //   `cubic-bezier(${defDotPreset[0].x}, ${defDotPreset[0].y}, ${defDotPreset[1].x}, ${defDotPreset[1].y})`
+    );
+  },
+};
+
 class Point {
   x = 0;
   y = 0;
@@ -90,18 +105,28 @@ class StorageImplementation {
 // const storage = new Storage(4, new Point(0, 1), new Point(1, 0));
 
 class Updater {
-  elementList = [];
+  elementListForOutput = [];
   canvasElementList = [];
+  elementsListForAnimation = [];
   canvas;
   /**
-   * @param {Array} elementList
+   * @param {Array} elementListForOutput
    */
-  constructor(elementList, canvasElementList, canvasWidth, canvasHeight) {
+  constructor(
+    elementListForOutput,
+    elementsListForAnimation,
+    canvasElementList,
+    canvasWidth,
+    canvasHeight
+  ) {
     if (!canvasElementList) {
       throw new Error("pls set list of canvas elements for move");
     }
-    if (!elementList) {
+    if (!elementListForOutput) {
       throw new Error("pls set list of elements for view output data");
+    }
+    if (!elementsListForAnimation) {
+      throw new Error("pls set list of elements for view animation");
     }
     if (!canvasWidth || !canvasHeight) {
       throw new Error(
@@ -110,7 +135,8 @@ class Updater {
     }
     this.canvasWidth = canvasWidth;
     this.canvasHeight = canvasHeight;
-    this.elementList = [...elementList];
+    this.elementListForOutput = [...elementListForOutput];
+    this.elementsListForAnimation = [...elementsListForAnimation];
     this.canvasElementList = [...canvasElementList];
   }
   /**
@@ -119,15 +145,22 @@ class Updater {
   update(data) {
     this._updateUi(JSON.stringify(data));
     this._updateCanvasShape(data);
+    // this._updateAnimation(data);
     return undefined;
   }
   _updateUi(dataString) {
-    this.elementList.forEach((element) => (element.innerHTML = dataString));
+    this.elementListForOutput.forEach(
+      (element) => (element.innerHTML = dataString)
+    );
   }
+  //   _updateAnimation(dataString) {
+  //     this.elementsListForAnimation.forEach(() => {
+  //       throw new Error("implement");
+  //     });
+  //   }
   _updateCanvasShape(dataObj) {
     this.canvasElementList.forEach((shape) => {
       shape.update(dataObj);
-      console.error("should implement", dataObj);
     });
   }
 }
@@ -356,6 +389,32 @@ class CanvasElement {
   addToListElementForDraw(shape) {
     this.existingShapes.add(shape);
   }
+  drawNet(xCount, yCount, ElementClass, PointClass) {
+    this.ctx.clearRect(0, 0, this.domNode.width, this.domNode.height);
+    for (let i = 0; i < this.domNode.width; i += this.domNode.width / xCount) {
+      this.addToListElementForDraw(
+        new ElementClass(
+          new PointClass(i, 0),
+          new PointClass(i, this.domNode.height)
+        )
+      );
+    }
+    for (
+      let i = 0;
+      i < this.domNode.height;
+      i += this.domNode.height / yCount
+    ) {
+      this.addToListElementForDraw(
+        new ElementClass(
+          new PointClass(0, i),
+          new PointClass(this.domNode.width, i)
+        )
+      );
+    }
+    this.existingShapes.forEach((shape) => {
+      shape.draw(this);
+    });
+  }
 }
 
 class InputCanvasElement extends CanvasElement {
@@ -458,7 +517,6 @@ class InputCanvasElement extends CanvasElement {
         let whichControlActive = `point${this.activeDotIndex + 1}`;
         copyStorageData[whichControlActive] = hittedControlPointCoords;
         this.storageElem.updateData(copyStorageData);
-        // TODO add here update for all
         this.drawShape();
       }
     }
@@ -475,6 +533,46 @@ class InputCanvasElement extends CanvasElement {
   }
 }
 
+class InputElement {
+  storageElem;
+
+  /**
+   * @param {HTMLCanvasElement} domNode Canvas element
+   */
+
+  constructor(domNode, storageElem) {
+    if (!storageElem) {
+      throw new Error("pls set storage for save output data");
+    }
+    this.storageElem = storageElem;
+    this._subscribe();
+  }
+
+  _subscribe() {
+    this.domNode.addEventListener(
+      "click",
+      this._controlDotChangePosition.bind(this)
+    );
+  }
+
+  /**
+   *
+   * @param {Event} ev
+   * @private
+   */
+  _controlDotChangePosition(ev) {
+    /**
+     * 1. get mouse coordinates
+     * 2. choose which dot moved
+     * 3. update output dots pos
+     * **/
+    const userPointsPreset = event.target.value.split(", ");
+    this.storageElem.updateData(userPointsPreset);
+    this.drawShape();
+    return undefined;
+  }
+}
+
 // document.addEventListener();
 // function timeInputUpdated(event) {
 //     setTimeout(() => {
@@ -486,26 +584,49 @@ class InputCanvasElement extends CanvasElement {
 //   }
 
 (() => {
-  // copyButton.addEventListener("click", copyBezierPreset);
+  const copyButton = document.getElementById("copy");
+  const copyButtonIcon = document.querySelector("#copy .bi");
+  const canvas = document.getElementById("canvas");
+  const canvasBack = document.getElementById("canvasBack");
+  const inputTime = document.getElementById("duration");
+  const output = document.querySelector(".output");
+  const circle = document.querySelector(".circle");
+  const radiobuttons = document.querySelectorAll(
+    '[name="selectTypeOfAnimation"]'
+  );
+  //   function radiobuttonChangeHandler(event) {
+  //     /**
+  //      * 1. get presetted coordinates
+  //      * 2. update dots pos
+  //      * 4. update output dots pos
+  //      * 5. redraw curve
+  //      * 6. update animation
+  //      * **/
+  //     const userPointsPreset = event.target.value.split(", ");
+  //     const controlPointsCoords = [
+  //       new Point(userPointsPreset[0], userPointsPreset[1]),
+  //       new Point(userPointsPreset[2], userPointsPreset[3]),
+  //     ];
+  //     defDotPreset[0] = controlPointsCoords[0];
+  //     defDotPreset[1] = controlPointsCoords[1];
+  //     // updateOtput(output, defDotPreset);
+  //     // drawCurve(canvas);
+  //     // updateAnimation(circle, defTimePreset, defDotPreset);
+  //   }
+
+  copyButton.addEventListener("click", (event) => {
+    helpers.copyBezierPreset(event, dataStorage.getData());
+    helpers.buttonManipulate(copyButtonIcon);
+  });
   //   const converter = new Converter();
 
   const domeNodeOutput = document.getElementById("output");
   const domeNodeCanvasDynamic = document.getElementById("canvasDynamic");
   const domeNodeCanvasStatic = document.getElementById("canvasStatic");
-  
-  const staticCanvas = new CanvasElement(domeNodeCanvasStatic);
-  const backLine = new LineShape(
-    new Point(20, 0),
-    new Point(20, staticCanvas.height)
-  );
-  const backLine2 = new LineShape(
-    new Point(0, 20),
-    new Point(staticCanvas.width, 20)
-  );
-  staticCanvas.addToListElementForDraw(backLine);
-  staticCanvas.addToListElementForDraw(backLine2);
-  staticCanvas.drawShape();
 
+  const staticCanvas = new CanvasElement(domeNodeCanvasStatic);
+  staticCanvas.drawNet(10, 10, LineShape, Point);
+  staticCanvas.drawShape();
 
   const initDataPoints = new StorageData(
     new Point(0, 0),
@@ -514,29 +635,33 @@ class InputCanvasElement extends CanvasElement {
   );
   const dataStorage = new StorageImplementation(initDataPoints);
 
-
   const curve = new CurveShape();
   const control = new CurveControlShape(
     initDataPoints.point1,
-    new Point(0, 300)
+    new Point(0, 300),
+    2,
+    "#000",
+    5,
+    "#f0f",
+    1
   );
   const control2 = new CurveControlShape(
     initDataPoints.point2,
     new Point(300, 0),
-    4,
+    2,
     "#000",
     5,
-    "#00f",
+    "#0ff",
     2
   );
 
   const updater = new Updater(
     [domeNodeOutput],
+    [circle],
     [control, control2, curve],
     domeNodeCanvasDynamic.width,
     domeNodeCanvasDynamic.height
   );
-
 
   const dynamicCanvas = new InputCanvasElement(
     domeNodeCanvasDynamic,
@@ -548,8 +673,11 @@ class InputCanvasElement extends CanvasElement {
   dynamicCanvas.addToListElementForDraw(control);
   dynamicCanvas.addToListElementForDraw(control2);
 
-
   dynamicCanvas.drawShape();
+
+  radiobuttons.forEach(
+    (radioButton) => new InputElement(radioButton, dataStorage)
+  );
 
   const someFunc = function (shouldUpdateUi) {
     updater.update(dataStorage.initData);
@@ -557,17 +685,5 @@ class InputCanvasElement extends CanvasElement {
 
   Observer.registerListener(someFunc);
 
-  //   let i = 0;
-  //   domeNodeCanvasDynamic.addEventListener("click", function (event) {
-  //     const initDataPoints2 = new StorageData(
-  //       new Point(1 + i, 1 + i),
-  //       new Point(2 + 2 * i, 2 + 3 * i),
-  //       5
-  //     );
-  //     circle.update(new Point(40 + i, 40 + i));
-  //     circle2.update(new Point(250 - i, 250 - i));
-  //     dynamicCanvas.drawShape();
-  //     i += 10;
-  //     dataStorage.updateData(initDataPoints2);
-  //   });
+  document.getElementById("global").classList.remove("loading-skeleton");
 })();
